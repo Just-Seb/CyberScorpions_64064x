@@ -1,0 +1,295 @@
+/*----------------------------------------------------------------------------*/
+/*                                                                            */
+/*    Module:       main.cpp                                                  */
+/*    Author:       VEX                                                       */
+/*    Created:      Thu Sep 26 2019                                           */
+/*    Description:  Competition Template                                      */
+/*                                                                            */
+/*----------------------------------------------------------------------------*/
+
+// ---- START VEXCODE CONFIGURED DEVICES ----
+// Robot Configuration:
+// [Name]               [Type]        [Port(s)]
+// ---- END VEXCODE CONFIGURED DEVICES ----
+
+#include "vex.h"
+
+using namespace vex;
+
+vex::vision Vision_Sensor         = vex::vision( vex::PORT11);
+vex::motor LeftMotor              = vex::motor( vex::PORT1);
+vex::motor RightMotor             = vex::motor( vex::PORT3);
+vex::motor LeftFrontMotor         = vex::motor( vex::PORT2);
+vex::motor RightFrontMotor        = vex::motor( vex::PORT4);
+vex::motor grip_spinners1         = vex::motor( vex::PORT5);
+vex::motor grip_spinners2         = vex::motor( vex::PORT6);
+vex::controller Controller1       = vex::controller(primary);
+vex::controller Controller2       = vex::controller(partner);
+
+int speed = 0;
+int base_area = 0;
+int base_width_height = 0;
+int location = 0;
+
+int LeftFrontMotor_value;
+int RightFrontMotor_value;
+int LeftMotor_value;
+int RightMotor_value;
+int gripper_spinner_value;
+
+
+int Auto_LeftFrontMotor_value = speed;
+int Auto_RightFrontMotor_value = speed;
+int Auto_LeftMotor_value = speed;
+int Auto_RightMotor_value = speed;
+
+#define sig1 RED_1
+#define sig2 BLUE_2
+#define sig3 YELLOW_3
+#define sig4 GREEN_4
+#define sig5 PURPLE_5
+#define sig6 ORANGE_6
+
+
+// A global instance of competition
+competition Competition;
+
+// define your global instances of motors and other devices here
+
+
+void spin_button() {
+
+  LeftFrontMotor.spin(vex::directionType::fwd, 50, vex::velocityUnits::pct);
+  RightFrontMotor.spin(vex::directionType::fwd, 50, vex::velocityUnits::pct);
+  RightMotor.spin(vex::directionType::fwd, 50, vex::velocityUnits::pct);
+  LeftMotor.spin(vex::directionType::fwd, 50, vex::velocityUnits::pct);
+
+}
+
+
+void turnleft(){
+
+  LeftFrontMotor.spin(vex::directionType::fwd, speed * -1, vex::velocityUnits::pct);
+  RightFrontMotor.spin(vex::directionType::fwd, speed * -1, vex::velocityUnits::pct);
+  RightMotor.spin(vex::directionType::fwd, speed * -1, vex::velocityUnits::pct);
+  LeftMotor.spin(vex::directionType::fwd, speed * -1, vex::velocityUnits::pct);
+
+}
+
+void turnright(){
+
+  LeftFrontMotor.spin(vex::directionType::fwd, speed, vex::velocityUnits::pct);
+  RightFrontMotor.spin(vex::directionType::fwd, speed, vex::velocityUnits::pct);
+  RightMotor.spin(vex::directionType::fwd, speed, vex::velocityUnits::pct);
+  LeftMotor.spin(vex::directionType::fwd, speed, vex::velocityUnits::pct);
+
+}
+
+
+void move_forward() {
+
+  LeftFrontMotor.spin(vex::directionType::fwd, speed, vex::velocityUnits::pct);
+  RightFrontMotor.spin(vex::directionType::fwd, -speed, vex::velocityUnits::pct);
+ 
+}
+
+
+void check_turning() {
+  if(location < 100) {
+    turnleft();
+  } else if (location > 200) {
+      turnright();
+  }
+
+}
+
+void motors() {
+
+  LeftFrontMotor.spin(vex::directionType::fwd,Auto_LeftFrontMotor_value, vex::velocityUnits::pct);
+  RightFrontMotor.spin(vex::directionType::fwd, Auto_RightFrontMotor_value, vex::velocityUnits::pct);
+  RightMotor.spin(vex::directionType::fwd, Auto_RightMotor_value, vex::velocityUnits::pct);
+  LeftMotor.spin(vex::directionType::fwd, Auto_LeftMotor_value, vex::velocityUnits::pct);
+
+}
+
+void check_camera() {
+
+  Brain.Screen.setCursor(10, 10);
+  Brain.Screen.print("pressed");
+
+  Vision_Sensor.takeSnapshot(1);
+
+  if(Vision_Sensor.largestObject.exists && Vision_Sensor.largestObject.width > 7){
+
+    location = Vision_Sensor.largestObject.centerX;
+
+    speed = abs(location - 150) / 5;
+    speed = (speed < 5) ? 5 : speed;
+
+    Auto_LeftFrontMotor_value = speed;
+    Auto_RightFrontMotor_value = speed;
+    Auto_LeftMotor_value = speed;
+    Auto_RightMotor_value = speed;
+
+    motors();
+    
+    if(base_area > 5) {
+      
+      Vision_Sensor.takeSnapshot(1);
+      int second_width = Vision_Sensor.largestObject.width;
+      int second_height = Vision_Sensor.largestObject.height;
+      int second_area = second_width * second_height;
+      
+      if(base_area != second_area) {
+        Vision_Sensor.takeSnapshot(1);
+        second_width = Vision_Sensor.largestObject.width;
+        second_height = Vision_Sensor.largestObject.height;
+        second_area = second_width * second_height;
+        Brain.Screen.setCursor(6,20);
+        Brain.Screen.print(base_width_height);
+        Brain.Screen.setCursor(7,20);
+        Brain.Screen.print(base_area);
+        Brain.Screen.setCursor(8,20);
+        Brain.Screen.print(second_area);
+        speed = base_area - second_area;
+      }
+    }
+
+
+  }
+
+}
+
+
+/*---------------------------------------------------------------------------*/
+/*                          Pre-Autonomous Functions                         */
+/*                                                                           */
+/*  You may want to perform some actions before the competition starts.      */
+/*  Do them in the following function.  You must return from this function   */
+/*  or the autonomous and usercontrol tasks will not be started.  This       */
+/*  function is only called once after the V5 has been powered on and        */
+/*  not every time that the robot is disabled.                               */
+/*---------------------------------------------------------------------------*/
+
+void pre_auton(void) {
+  // Initializing Robot Configuration. DO NOT REMOVE!
+  vexcodeInit();
+
+  // All activities that occur before the competition starts
+  // Example: clearing encoders, setting servo positions, ...
+}
+
+/*---------------------------------------------------------------------------*/
+/*                                                                           */
+/*                              Autonomous Task                              */
+/*                                                                           */
+/*  This task is used to control your robot during the autonomous phase of   */
+/*  a VEX Competition.                                                       */
+/*                                                                           */
+/*  You must modify the code to add your own robot specific commands here.   */
+/*---------------------------------------------------------------------------*/
+
+void autonomous(void) {
+  // ..........................................................................
+  // Insert autonomous user code here.
+  // ..........................................................................
+}
+
+/*---------------------------------------------------------------------------*/
+/*                                                                           */
+/*                              User Control Task                            */
+/*                                                                           */
+/*  This task is used to control your robot during the user control phase of */
+/*  a VEX Competition.                                                       */
+/*                                                                           */
+/*  You must modify the code to add your own robot specific commands here.   */
+/*---------------------------------------------------------------------------*/
+
+void usercontrol(void) {
+  // User control code here, inside the loop
+  Brain.Screen.setCursor(1, 1);
+  Brain.Screen.print("Come join us at Robotics This Wensday from 4:15");
+  Brain.Screen.clearScreen();
+  Brain.Screen.setCursor(3, 3);
+  Brain.Screen.print("hello");
+    
+  while (1) {
+    // This is the main execution loop for the user control program.
+    // Each time through the loop your program should update motor + servo
+    // values based on feedback from the joysticks.
+
+    // ........................................................................
+
+
+    Brain.Screen.clearScreen();
+    Brain.Screen.print("Axis 1");
+    Brain.Screen.print(Controller1.Axis1.position());
+    Brain.Screen.setCursor(2, 1);
+    Brain.Screen.print("Axis 2");
+    Brain.Screen.print(Controller1.Axis2.position());
+    Brain.Screen.setCursor(3, 1);
+    Brain.Screen.print("Axis 3");
+    Brain.Screen.print(Controller1.Axis3.position());
+    Brain.Screen.setCursor(4, 1);
+    Brain.Screen.print("Axis 4");
+    Brain.Screen.print(Controller1.Axis4.position());
+
+    while(Controller1.ButtonA.pressing()) {
+      Vision_Sensor.takeSnapshot(1);
+      int base_width = Vision_Sensor.largestObject.width;
+      int base_height = Vision_Sensor.largestObject.height;
+      base_width_height = base_width * base_height;
+      if(base_width_height > 5) {
+        base_area = (base_area == 0) ? base_width_height : base_area;
+      }
+      check_camera();
+    }
+    base_area = 0;
+    Brain.Screen.setCursor(1, 1);
+
+    while(Controller1.ButtonB.pressing()) {
+      spin_button();
+    }
+
+
+    LeftFrontMotor_value = Controller1.Axis2.position();
+    RightFrontMotor_value = -Controller1.Axis2.position();
+    LeftMotor_value = Controller1.Axis1.position();
+    RightMotor_value = -Controller1.Axis1.position();
+    gripper_spinner_value = Controller1.Axis3.position();
+    LeftFrontMotor_value = LeftFrontMotor_value + Controller1.Axis4.position() / 4;
+    RightFrontMotor_value = RightFrontMotor_value + Controller1.Axis4.position() / 4;
+    LeftMotor_value = LeftMotor_value + Controller1.Axis4.position() / 4;
+    RightMotor_value = RightMotor_value + Controller1.Axis4.position() / 4;
+
+    LeftFrontMotor.spin(vex::directionType::fwd, LeftFrontMotor_value, vex::velocityUnits::pct);
+    RightFrontMotor.spin(vex::directionType::fwd, RightFrontMotor_value, vex::velocityUnits::pct);
+    RightMotor.spin(vex::directionType::fwd, LeftMotor_value, vex::velocityUnits::pct);
+    LeftMotor.spin(vex::directionType::fwd, RightMotor_value, vex::velocityUnits::pct);
+    grip_spinners1.spin(vex::directionType::fwd, gripper_spinner_value, vex::velocityUnits::pct);
+    grip_spinners2.spin(vex::directionType::fwd, -gripper_spinner_value, vex::velocityUnits::pct);
+
+
+    // ........................................................................
+
+    wait(10, msec); // Sleep the task for a short amount of time to
+                    // prevent wasted resources.
+  }
+}
+
+//
+// Main will set up the competition functions and callbacks.
+//
+int main() {
+  // Set up callbacks for autonomous and driver control periods.
+  Competition.autonomous(autonomous);
+  Competition.drivercontrol(usercontrol);
+
+  // Run the pre-autonomous function.
+  pre_auton();
+
+  // Prevent main from exiting with an infinite loop.
+  while (true) {
+    wait(100, msec);
+  }
+}
